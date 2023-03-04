@@ -87,7 +87,7 @@ function run_database_setup() {
   mysql -h $RDS_ENDPOINT -u admin -p$DB_PASS --execute="CREATE DATABASE bookstack;"
   mysql -h $RDS_ENDPOINT -u admin -p$DB_PASS --execute="CREATE USER 'bookstack'@'%' IDENTIFIED BY '$DB_PASS';"
   mysql -h $RDS_ENDPOINT -u admin -p$DB_PASS --execute="GRANT ALL PRIVILEGES ON bookstack.* TO 'bookstack'@'%';"
-  $endpoint -u admin -p$DB_PASS --execute="FLUSH PRIVILEGES;"
+  $RDS_ENDPOINT -u admin -p$DB_PASS --execute="FLUSH PRIVILEGES;"
 }
 
 # Download BookStack

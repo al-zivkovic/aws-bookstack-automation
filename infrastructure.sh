@@ -143,7 +143,7 @@ chmod 600 ${key}.pem
 
 # EC2 Instance
 ami_id="ami-0735c191cf914754d"
-aws ec2 run-instances \
+ec2_info=$(aws ec2 run-instances \
   --image-id $ami_id \
   --count 1 \
   --instance-type t2.micro \
@@ -152,7 +152,17 @@ aws ec2 run-instances \
   --subnet-id $public_subnet_id \
   --associate-public-ip-address \
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=assignment2-ec2-instance}]' \
-  --region $AZ
+  --region $AZ \
+  --query 'Instances[0].{InstanceId:InstanceId, PublicIpAddress:PublicIpAddress}' \
+  --output json
+)
+
+
+# wait for ec2
+echo "Wait for EC2 Instance to get created (it will take a bit of time...)"
+
+instance_id=$(echo $ec2_info | yq -r '.InstanceId')
+aws ec2 wait instance-running --instance-ids $instance_id
 
 # RDS Instance
 rds_sng="rds-subnet-group"
@@ -171,4 +181,30 @@ aws rds create-db-instance \
 # wait for rds
 echo "Wait for Database to get created (it will take a bit of time...)"
 
-scp -i 
+
+# Get public IP of the instance
+public_ip=$(aws ec2 describe-instances --instance-ids $instance_id --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+
+if [ -z "$public_ip" ]
+then
+    echo "Error: Public IP not found for instance: $instance_id"
+    exit 1
+fi
+
+# Copy application to EC2 Instance
+key_file="./assignment2-key.pem"
+copy_application=$(scp -o StrictHostKeyChecking=no -i "$key_file" ./application.sh ubuntu@$public_ip:~/)
+if [ $? -ne 0 ]
+then
+    echo "Error: Failed to copy application to EC2 Instance"
+    exit 1
+else
+    echo "Application copied to EC2 Instance"
+fi
+
+# Describe infrastructure
+echo ""
+echo "Describe infrastructure:"
+aws ec2 describe-vpcs
+
+
